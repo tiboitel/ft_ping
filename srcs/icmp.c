@@ -21,14 +21,14 @@ int	create_icmp_packet(t_icmp_packet *pkt, uint16_t seq)
 	memset(pkt, 0, sizeof(t_icmp_packet));
 	pkt->hdr.type = ICMP_ECHO;
 	pkt->hdr.code = 0;
-	pkt->hdr.un.echo.id = htons(getpid() & 0xFFFFFF);
+	pkt->hdr.un.echo.id = htons(getpid() & 0xFFFF);
 	pkt->hdr.un.echo.sequence = htons(seq);
 	for (size_t i = 0; i < sizeof(pkt->payload); i++)
 	{
 		pkt->payload[i] = PAYLOAD_PATTERN;
 	}
 	pkt->hdr.checksum = 0;
-	pkt->hdr.checksum = calculate_checksum(pkt, sizeof(pkt));
+	pkt->hdr.checksum = calculate_checksum(pkt, sizeof(*pkt));
 	return (0);
 }
 
