@@ -43,8 +43,9 @@ int	ping_loop(char *target, bool verbose)
 	struct addrinfo 	*res;
 	struct sockaddr_in	*addr;
 	char				addr_str[INET_ADDRSTRLEN];
-	struct sockaddr_in	reply_addr;
 	socklen_t			addrlen;
+	struct sockaddr_in	reply_addr;
+	char				reply_ip[INET_ADDRSTRLEN];
 
 
 	sockfd = -1;
@@ -93,11 +94,23 @@ int	ping_loop(char *target, bool verbose)
 			{
 				break;
 			}
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+			{
+				fprintf(stderr, "Request timeout for icmp_seq %d\n", sequence);
+				continue;
+			}
 			perror("recvfrom:");
 			continue;
 		}
 		// need to check packet validity
-		printf("%d bytes from %s: icmp_seq=%d, ttl=64, time=%2.f ms\n", 0, "0.0.0.0", 0, 0.00);
+		valid = parse_icmp_packet(recv_buf, n, verbose);
+		if (valid)
+		{
+			received++;
+			bzero(&reply_ip, INET_ADDRSTRLEN);	
+			inet_ntop(AF_INET, &reply_addr.sin_addr, reply_ip, sizeof(reply_ip));
+			printf("%d bytes from %s: icmp_seq=%d, ttl=64, time=%2.f ms\n", n, reply_ip, sequence, 0.00);
+		}
 		usleep(1000000);
 	}
 	(void)valid;

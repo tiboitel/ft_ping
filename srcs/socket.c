@@ -47,21 +47,32 @@ int	setup_raw_socket(void)
 
 int send_icmp_packet(int sockfd, const void *packet, size_t packet_size, const struct sockaddr *dest)
 {
-	(void)sockfd;
-	(void)packet;
-	(void)packet_size;
-	(void)dest;
-	return (0);
+	ssize_t sent = -0;
+
+	sent  = sendto(sockfd, packet, packet_size, 0, dest, sizeof(struct sockaddr_in));
+	if (sent < 0 || (size_t)sent != packet_size)
+	{
+		perror("sendto:");
+		return (-1);
+	}
+	return 0;
 }
 
-int	receive_imcp_reply(int sockfd, uint8_t *buf, size_t buffer,
+int	receive_imcp_reply(int sockfd, uint8_t *buf, size_t buffer_size,
 		struct sockaddr *src)
 {
-	(void)sockfd;
-	(void)buf;
-	(void)buffer;
-	(void)src;
-	return (0);
+	socklen_t	addrlen;
+	ssize_t		n;
+
+
+	addrlen = sizeof(struct sockaddr_in);
+	n = 0;
+	n = recvfrom(sockfd, buf, buffer_size, 0, src, &addrlen);
+	if (n < 0)
+	{
+		return (-1);
+	}
+	return (int)n;
 }
 
 
