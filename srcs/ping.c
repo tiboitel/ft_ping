@@ -86,7 +86,7 @@ int	ping_loop(char *target, bool verbose)
 		}
 		transmitted++;
 		addrlen = sizeof(reply_addr);
-		n = receive_imcp_reply(sockfd, recv_buf, sizeof(recv_buf), (struct sockaddr *)&reply_addr);
+		n = receive_icmp_reply(sockfd, recv_buf, sizeof(recv_buf), (struct sockaddr *)&reply_addr);
 		gettimeofday(&recv_time, NULL);
 		if (n < 0)
 		{
@@ -109,7 +109,7 @@ int	ping_loop(char *target, bool verbose)
 			received++;
 			bzero(&reply_ip, INET_ADDRSTRLEN);	
 			inet_ntop(AF_INET, &reply_addr.sin_addr, reply_ip, sizeof(reply_ip));
-			printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%2.f ms\n", n, reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, 0.00);
+			printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%02.f ms\n", n, reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, 12.8);
 		}
 		usleep(1000000);
 	}

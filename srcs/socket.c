@@ -58,7 +58,7 @@ int send_icmp_packet(int sockfd, const void *packet, size_t packet_size, const s
 	return 0;
 }
 
-int	receive_imcp_reply(int sockfd, uint8_t *buf, size_t buffer_size,
+int	receive_icmp_reply(int sockfd, uint8_t *buf, size_t buffer_size,
 		struct sockaddr *src)
 {
 	socklen_t	addrlen;

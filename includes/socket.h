@@ -27,7 +27,7 @@
 int	setup_raw_socket(void);
 int	send_icmp_packet(int sockfd, const void *pkt, size_t len,
 		const struct sockaddr *dest);
-int	receive_imcp_reply(int sockfd, uint8_t *buf, size_t buffer,
+int	receive_icmp_reply(int sockfd, uint8_t *buf, size_t buffer,
 		struct sockaddr *src);
 
 #endif
