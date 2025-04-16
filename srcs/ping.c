@@ -30,8 +30,11 @@ int	ping_loop(char *target, bool verbose)
 	int					transmitted;
 	int					received;
 	int 				err;
+	int					n;
+	int					valid;
 	uint8_t				send_buf[sizeof(t_icmp_packet)];
-	uint8_t				recv_buff[1024];
+	uint8_t				recv_buf[1024];
+	double				rtt;
 	struct timeval		send_time;
 	struct timeval		recv_time;
 	t_icmp_packet		*pkt;
@@ -40,6 +43,8 @@ int	ping_loop(char *target, bool verbose)
 	struct addrinfo 	*res;
 	struct sockaddr_in	*addr;
 	char				addr_str[INET_ADDRSTRLEN];
+	struct sockaddr_in	reply_addr;
+	socklen_t			addrlen;
 
 
 	sockfd = -1;
@@ -58,29 +63,51 @@ int	ping_loop(char *target, bool verbose)
 		fprintf(stderr, "DNS resolution failed for %s: %s\n", target, gai_strerror(err));
 		return (1);
 	}
-	/* sockfd = setup_raw_socket();
+	sockfd = setup_raw_socket();
 	if (sockfd < 0)
 	{
 		freeaddrinfo(res);
 		return (1);
-	}*/
+	}
 	signal(SIGINT, sigint_handler);
 	addr = (struct sockaddr_in *)res->ai_addr;
 	inet_ntop(AF_INET, &addr->sin_addr, addr_str, sizeof(addr_str));
 	printf("PING %s (%s) 56(84) bytes of data.\n", target, addr_str);
 	while (!g_stop_requested)
 	{
+		pkt = (t_icmp_packet *)send_buf;
+		create_icmp_packet(pkt, ++sequence);
+		gettimeofday(&send_time, NULL);
+
+		if (send_icmp_packet(sockfd, send_buf, sizeof(t_icmp_packet), res->ai_addr) < 0) {
+			perror("sendto:");
+			continue;
+		}
+		transmitted++;
+		addrlen = sizeof(reply_addr);
+		n = receive_imcp_reply(sockfd, recv_buf, sizeof(recv_buf), (struct sockaddr *)&reply_addr);
+		gettimeofday(&recv_time, NULL);
+		if (n < 0)
+		{
+			if (errno == EINTR)
+			{
+				break;
+			}
+			perror("recvfrom:");
+			continue;
+		}
+		// need to check packet validity
 		printf("%d bytes from %s: icmp_seq=%d, ttl=64, time=%2.f ms\n", 0, "0.0.0.0", 0, 0.00);
 		usleep(1000000);
 	}
+	(void)valid;
+	(void)rtt;
 	(void)stats;
 	(void)verbose;
-	(void)send_buf;
-	(void)recv_buff;
 	(void)send_time;
 	(void)recv_time;
 	(void)pkt;
-	// close(sockfd);
+	close(sockfd);
 	freeaddrinfo(res);
 	return (0);
 }

@@ -16,6 +16,12 @@
 # include <netinet/ip_icmp.h>
 # include <stdint.h>
 # include <stddef.h>
+# include <stdbool.h>
+# include <string.h>
+# include <stdio.h>
+# include <sys/types.h>
+# include <unistd.h>
+# include "utils.h"
 
 # define ICMP_HDRLEN 8
 # define PAYLOAD_PATTERN 0x42
@@ -26,6 +32,6 @@ typedef struct s_icmp_packet {
 }		t_icmp_packet;
 
 int	create_icmp_packet(t_icmp_packet *pkt, uint16_t seq);
-int	parse_icmp_packeT(const uint8_t *buffer, size_t size, bool verbose);
+int	parse_icmp_packet(const uint8_t *buffer, size_t size, bool verbose);
 
 #endif
