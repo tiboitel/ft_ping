@@ -141,7 +141,7 @@ int	ping_loop(char *target, bool verbose)
 			update_rtt_stats(&stats, rtt);
 			bzero(&reply_ip, INET_ADDRSTRLEN);	
 			inet_ntop(AF_INET, &reply_addr.sin_addr, reply_ip, sizeof(reply_ip));
-			printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", n, reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, rtt);
+			printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", (int)(n - sizeof(struct iphdr)), reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, rtt);
 		}
 		usleep(1000000);
 	}
