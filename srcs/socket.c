@@ -92,6 +92,7 @@ int	receive_icmp_reply(int sockfd, uint8_t *buf, size_t buffer_size,
 	addrlen = sizeof(struct sockaddr_storage);
 	n = 0;
 	n = recvfrom(sockfd, buf, buffer_size, 0, (struct sockaddr *)&src_storage, &addrlen);
+	memcpy(src, &src_storage, sizeof(struct sockaddr));
 	if (n < 0)
 	{
 		return (-1);

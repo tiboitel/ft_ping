@@ -88,7 +88,7 @@ int	parse_icmp_packet(const uint8_t *buffer, size_t size, bool verbose)
 	return (1);
 }
 
-int	parse_icmp6_packet(const uint8_t *buffer, size_t size, bool verbose)
+int	parse_icmpv6_packet(const uint8_t *buffer, size_t size, bool verbose)
 {
 	const struct icmp6_hdr	*icmp6;
 

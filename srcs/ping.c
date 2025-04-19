@@ -80,7 +80,6 @@ int	ping_loop(char *target, t_env *env)
 	struct sockaddr_in6	dst6;
 	char				reply_ip[INET_ADDRSTRLEN];
 
-	(void)pkt6;
 	env->sockfd = -1;
 	sequence = 0;
 	transmitted = 0;
@@ -93,6 +92,11 @@ int	ping_loop(char *target, t_env *env)
 	hints.ai_protocol = IPPROTO_ICMP;
 	err = getaddrinfo(target, NULL, &hints, &res);
 	is_ipv6 = (res->ai_family == AF_INET6);
+	if (is_ipv6 && !env->enabled_ipv6)
+	{
+		fprintf(stderr, "Target use IPv6 and not IPv4 protocol: %s.\n", target);
+		return (1);
+	}
 	is_ipv6 = env->enabled_ipv6 && is_ipv6; 
 	env->target = res;
 	env->family = res->ai_family;
@@ -132,8 +136,6 @@ int	ping_loop(char *target, t_env *env)
 			create_icmpv6_packet(&pkt6, ++sequence, &src_addr, &dst6.sin6_addr);
 			memcpy(send_buf, &pkt6, sizeof(pkt6));
 			dest = (void *)&dst6;
-
-			printf("logs: create_icmp6_packet\n");
 		}
 		else
 		{
@@ -145,7 +147,7 @@ int	ping_loop(char *target, t_env *env)
 	
 		}
 		gettimeofday(&send_time, NULL);
-		if (send_icmp_packet(env, send_buf, (is_ipv6) ? sizeof(t_icmp_packet) : sizeof(t_icmpv6_packet), dest)  < 0) {
+		if (send_icmp_packet(env, send_buf, (is_ipv6) ? sizeof(t_icmpv6_packet) : sizeof(t_icmp_packet), dest)  < 0) {
 			perror("sendto:");
 			continue;
 		}
