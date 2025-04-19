@@ -15,9 +15,10 @@
 
 # include <stdint.h>
 # include <stddef.h>
+# include <sys/time.h>
 
 uint16_t	calculate_checksum(void *buf, int len);
 void		print_ip_header(const uint8_t *packet);
 void		print_imcp_header(const uint16_t *packet);
-
+double		time_diff_ms(const struct timeval *start, const struct timeval *end);
 #endif

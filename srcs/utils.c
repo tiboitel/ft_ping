@@ -39,3 +39,16 @@ uint16_t	calculate_checksum(void * buf, int len)
 	return ~sum;
 }
 
+double		time_diff_ms(const struct timeval *start, const struct timeval *end)
+{
+	long sec_diff;
+	long usec_diff;
+
+	sec_diff = 0;
+	usec_diff = 0;
+	sec_diff = end->tv_sec - start->tv_sec;
+	usec_diff = end->tv_usec - start->tv_usec;
+	
+	return (sec_diff * 1000.0) + (usec_diff / 1000.0);
+}
+

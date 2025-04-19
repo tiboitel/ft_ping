@@ -24,6 +24,7 @@
 # include <sys/time.h>
 # include <sys/types.h>
 # include <arpa/inet.h>
+# include <math.h>
 # include <errno.h>
 
 # define APP_NAME "ft_ping"

@@ -23,6 +23,37 @@ static void sigint_handler(int sig)
 	g_stop_requested = 1;
 }
 
+static void print_summary(const char *host, const t_rtt_stats *stats,
+		int transmitted, int received)
+{
+	double	avg;
+	double	mdev;
+
+	avg = 0.00;
+	mdev = 0.00;
+	printf("\n--- %s ping statistics ---\n", host);
+	printf("%d packets transmitted, %d received, %1.f%% packet loss\n",
+			transmitted, received, ((transmitted - received) * 100.0) / transmitted);
+	if (stats->count > 0)
+	{
+		avg =  stats->sum / stats->count;
+		mdev = sqrt((stats->sumsq / stats->count) - (avg * avg));
+		printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n",
+				stats->min, avg, stats->max, mdev);
+	}
+}
+
+static void	update_rtt_stats(t_rtt_stats *stats, double rtt)
+{
+	if (stats->count == 0 || rtt < stats->min)
+		stats->min = rtt;
+	if (rtt > stats->max)
+		stats->max = rtt;
+	stats->sum += rtt;
+	stats->sumsq += rtt * rtt;
+	stats->count++;
+}
+
 int	ping_loop(char *target, bool verbose)
 {
 	int					sockfd;
@@ -102,24 +133,19 @@ int	ping_loop(char *target, bool verbose)
 			perror("recvfrom:");
 			continue;
 		}
-		// need to check packet validity
+		rtt = time_diff_ms(&send_time, &recv_time);
 		valid = parse_icmp_packet(recv_buf, n, verbose);
 		if (valid)
 		{
 			received++;
+			update_rtt_stats(&stats, rtt);
 			bzero(&reply_ip, INET_ADDRSTRLEN);	
 			inet_ntop(AF_INET, &reply_addr.sin_addr, reply_ip, sizeof(reply_ip));
-			printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%02.f ms\n", n, reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, 12.8);
+			printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", n, reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, rtt);
 		}
 		usleep(1000000);
 	}
-	(void)valid;
-	(void)rtt;
-	(void)stats;
-	(void)verbose;
-	(void)send_time;
-	(void)recv_time;
-	(void)pkt;
+	print_summary(target, &stats, transmitted, received);
 	close(sockfd);
 	freeaddrinfo(res);
 	return (0);
