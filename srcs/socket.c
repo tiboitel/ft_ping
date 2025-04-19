@@ -84,13 +84,14 @@ int send_icmp_packet(t_env *env, const void *packet, size_t packet_size, void *d
 int	receive_icmp_reply(int sockfd, uint8_t *buf, size_t buffer_size,
 		struct sockaddr *src)
 {
-	socklen_t	addrlen;
-	ssize_t		n;
+	socklen_t				addrlen;
+	struct sockaddr_storage	src_storage;
+	ssize_t					n;
 
 
-	addrlen = sizeof(struct sockaddr_in);
+	addrlen = sizeof(struct sockaddr_storage);
 	n = 0;
-	n = recvfrom(sockfd, buf, buffer_size, 0, src, &addrlen);
+	n = recvfrom(sockfd, buf, buffer_size, 0, (struct sockaddr *)&src_storage, &addrlen);
 	if (n < 0)
 	{
 		return (-1);

@@ -69,7 +69,7 @@ int	ping_loop(char *target, t_env *env)
 	struct timeval		send_time;
 	struct timeval		recv_time;
 	t_icmp_packet		*pkt4;
-	t_icmpv6_packet		*pkt6;
+	t_icmpv6_packet		pkt6;
 	t_rtt_stats 		stats;
 	struct addrinfo		*res;
 	struct addrinfo		hints;
@@ -129,9 +129,9 @@ int	ping_loop(char *target, t_env *env)
 			printf("logs: create_icmp6_packet\n");
 			dst6 = *(struct sockaddr_in6 *)env->target->ai_addr;
 			src_addr = in6addr_any;
-			create_icmpv6_packet(pkt6, ++sequence, &src_addr, &dst6.sin6_addr);
+			create_icmpv6_packet(&pkt6, ++sequence, &src_addr, &dst6.sin6_addr);
 			memcpy(send_buf, &pkt6, sizeof(pkt6));
-			dest = (void *)&dst6.sin6_addr;
+			dest = (void *)&dst6;
 
 			printf("logs: create_icmp6_packet\n");
 		}
@@ -169,7 +169,7 @@ int	ping_loop(char *target, t_env *env)
 			continue;
 		}
 		rtt = time_diff_ms(&send_time, &recv_time);
-		valid = parse_icmp_packet(recv_buf, n, env->verbose);
+		valid = (is_ipv6) ? parse_icmpv6_packet(recv_buf, n, env->verbose) : parse_icmp_packet(recv_buf, n, env->verbose);
 		if (valid)
 		{
 			received++;

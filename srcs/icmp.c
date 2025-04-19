@@ -88,4 +88,28 @@ int	parse_icmp_packet(const uint8_t *buffer, size_t size, bool verbose)
 	return (1);
 }
 
+int	parse_icmp6_packet(const uint8_t *buffer, size_t size, bool verbose)
+{
+	const struct icmp6_hdr	*icmp6;
+
+	if (!buffer || size < sizeof(struct icmp6_hdr)) 
+	{
+		dprintf(2, "parse_icmpv6_packet error: buffer is null or too small\n");
+		return (0);
+	}
+	icmp6 = (const struct icmp6_hdr *)buffer;
+	if (icmp6->icmp6_type != ICMP6_ECHO_REPLY)
+	{
+		dprintf(2, "parse_icmpv6_packet error: not an echo reply (type=%d)\n", icmp6->icmp6_type);
+		return (0);
+	}
+	if (ntohs(icmp6->icmp6_id) != (getpid() & 0xFFFF))
+	{
+		dprintf(2, "parse_icmp6_packet_error: echo.id mismatch\n");
+		return (0);
+	}
+	(void)verbose;
+	return (1);
+}
+
 

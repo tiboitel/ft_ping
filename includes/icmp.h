@@ -42,6 +42,6 @@ typedef struct s_icmpv6_packet {
 int	create_icmp_packet(t_icmp_packet *pkt, uint16_t seq);
 int	parse_icmp_packet(const uint8_t *buffer, size_t size, bool verbose);
 int	create_icmpv6_packet(t_icmpv6_packet *pkt, uint16_t seq, const struct in6_addr *src, const struct in6_addr *dst);
-int	parse_icmpv6_packet(const char *buffer, size_t size, bool verbose);
+int	parse_icmpv6_packet(const uint8_t *buffer, size_t size, bool verbose);
 
 #endif
