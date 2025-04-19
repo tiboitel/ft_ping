@@ -19,14 +19,15 @@
 # include <errno.h>
 # include <strings.h>
 # include <unistd.h>
+# include "ping.h"
 
 # define DEFAULT_TTL 64
 # define RECV_TIMEOUT_SEC 1
 # define RECV_TIMEOUT_USEC 0
 
-int	setup_raw_socket(void);
-int	send_icmp_packet(int sockfd, const void *pkt, size_t len,
-		const struct sockaddr *dest);
+int	setup_raw_socket(int family);
+int	send_icmp_packet(t_env *env, const void *pkt, size_t len,
+		void *dest);
 int	receive_icmp_reply(int sockfd, uint8_t *buf, size_t buffer,
 		struct sockaddr *src);
 

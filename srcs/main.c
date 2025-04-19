@@ -32,12 +32,12 @@ static void	print_version(void)
 
 int	main(int argc, char **argv)
 {
-	bool		verbose;
+	t_env		env;
 	char		*target;
 	int			ret;
 	int			i;
 
-	verbose = false;
+	env.verbose = false;
 	target = NULL;
 	i = 1;
 	while (i < argc)
@@ -45,7 +45,12 @@ int	main(int argc, char **argv)
 		// Replace strcmp call with ft_strcmp
 		if (strcmp(argv[i], "-v") == 0)
 		{
-			verbose = true;
+			env.verbose = true;
+		}
+		else if (strcmp(argv[i], "-6") == 0)
+		{
+			printf("IPV6: enabled.\n");
+			env.enabled_ipv6 = true;
 		}
 		else if (strcmp(argv[i], "--version") == 0
 			|| strcmp(argv[i], "-V") == 0)
@@ -75,7 +80,7 @@ int	main(int argc, char **argv)
 		return (EXIT_FAILURE);
 	}
 	ret = 0;
-	ret = ping_loop(target, verbose);
+	ret = ping_loop(target, &env);
 	if (ret != 0)
 	{
 		fprintf(stderr, "Ping failed with code %d\n", ret);

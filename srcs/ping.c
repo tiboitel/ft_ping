@@ -1,6 +1,6 @@
 /* ************************************************************************** */
 /*                                                                            */
-/*                                                        :::      ::::::::   */
+ /*                                                                    :::::   */
 /*   ping.c                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: tiboitel <marvin@42.fr>                    +#+  +:+       +#+        */
@@ -54,70 +54,105 @@ static void	update_rtt_stats(t_rtt_stats *stats, double rtt)
 	stats->count++;
 }
 
-int	ping_loop(char *target, bool verbose)
+int	ping_loop(char *target, t_env *env)
 {
-	int					sockfd;
 	int					sequence; 
 	int					transmitted;
 	int					received;
 	int 				err;
 	int					n;
 	int					valid;
-	uint8_t				send_buf[sizeof(t_icmp_packet)];
+	int					is_ipv6;
+	uint8_t				send_buf[1024];
 	uint8_t				recv_buf[1024];
 	double				rtt;
 	struct timeval		send_time;
 	struct timeval		recv_time;
-	t_icmp_packet		*pkt;
+	t_icmp_packet		*pkt4;
+	t_icmpv6_packet		*pkt6;
 	t_rtt_stats 		stats;
+	struct addrinfo		*res;
 	struct addrinfo		hints;
-	struct addrinfo 	*res;
 	struct sockaddr_in	*addr;
 	char				addr_str[INET_ADDRSTRLEN];
 	socklen_t			addrlen;
-	struct sockaddr_in	reply_addr;
+	struct sockaddr_in	dst4;
+	struct sockaddr_in6	dst6;
 	char				reply_ip[INET_ADDRSTRLEN];
 
-
-	sockfd = -1;
+	(void)pkt6;
+	env->sockfd = -1;
 	sequence = 0;
 	transmitted = 0;
 	received = 0;
 	res = NULL;
 	bzero(&stats, sizeof(t_rtt_stats));
 	bzero(&hints, sizeof(struct addrinfo));
-	hints.ai_family = AF_INET;
+	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_RAW;
 	hints.ai_protocol = IPPROTO_ICMP;
 	err = getaddrinfo(target, NULL, &hints, &res);
+	is_ipv6 = (res->ai_family == AF_INET6);
+	is_ipv6 = env->enabled_ipv6 && is_ipv6; 
+	env->target = res;
+	env->family = res->ai_family;
 	if (err != 0)
 	{
 		fprintf(stderr, "DNS resolution failed for %s: %s\n", target, gai_strerror(err));
 		return (1);
 	}
-	sockfd = setup_raw_socket();
-	if (sockfd < 0)
+	env->sockfd = setup_raw_socket(env->family);
+	if (env->sockfd < 0)
 	{
 		freeaddrinfo(res);
 		return (1);
 	}
 	signal(SIGINT, sigint_handler);
 	addr = (struct sockaddr_in *)res->ai_addr;
-	inet_ntop(AF_INET, &addr->sin_addr, addr_str, sizeof(addr_str));
-	printf("PING %s (%s) 56(84) bytes of data.\n", target, addr_str);
+	if (is_ipv6)
+	{
+		inet_ntop(env->family, &addr, env->target_ip, sizeof(env->target_ip));
+		printf("PING %s (%s) 56(84) bytes of data.\n", target, env->target_ip);
+	}
+	else
+	{
+		inet_ntop(AF_INET, &addr->sin_addr, addr_str, sizeof(addr_str));
+		printf("PING %s (%s) 56(84) bytes of data.\n", target, addr_str);
+	}
 	while (!g_stop_requested)
 	{
-		pkt = (t_icmp_packet *)send_buf;
-		create_icmp_packet(pkt, ++sequence);
-		gettimeofday(&send_time, NULL);
+		void *dest = NULL;
+		if (is_ipv6)
+		{
+			struct in6_addr src_addr;
 
-		if (send_icmp_packet(sockfd, send_buf, sizeof(t_icmp_packet), res->ai_addr) < 0) {
+			printf("logs: create_icmp6_packet\n");
+			dst6 = *(struct sockaddr_in6 *)env->target->ai_addr;
+			src_addr = in6addr_any;
+			create_icmpv6_packet(pkt6, ++sequence, &src_addr, &dst6.sin6_addr);
+			memcpy(send_buf, &pkt6, sizeof(pkt6));
+			dest = (void *)&dst6.sin6_addr;
+
+			printf("logs: create_icmp6_packet\n");
+		}
+		else
+		{
+
+			printf("logs: create_icmp4_packet\n");
+			pkt4 = (t_icmp_packet *)send_buf;
+			create_icmp_packet(pkt4, ++sequence);
+			dest = (void *)res->ai_addr;
+	
+		}
+		gettimeofday(&send_time, NULL);
+		if (send_icmp_packet(env, send_buf, (is_ipv6) ? sizeof(t_icmp_packet) : sizeof(t_icmpv6_packet), dest)  < 0) {
 			perror("sendto:");
 			continue;
 		}
+
 		transmitted++;
-		addrlen = sizeof(reply_addr);
-		n = receive_icmp_reply(sockfd, recv_buf, sizeof(recv_buf), (struct sockaddr *)&reply_addr);
+		addrlen = sizeof(dst4);
+		n = receive_icmp_reply(env->sockfd, recv_buf, sizeof(recv_buf), (struct sockaddr *)&dst4);
 		gettimeofday(&recv_time, NULL);
 		if (n < 0)
 		{
@@ -134,19 +169,19 @@ int	ping_loop(char *target, bool verbose)
 			continue;
 		}
 		rtt = time_diff_ms(&send_time, &recv_time);
-		valid = parse_icmp_packet(recv_buf, n, verbose);
+		valid = parse_icmp_packet(recv_buf, n, env->verbose);
 		if (valid)
 		{
 			received++;
 			update_rtt_stats(&stats, rtt);
 			bzero(&reply_ip, INET_ADDRSTRLEN);	
-			inet_ntop(AF_INET, &reply_addr.sin_addr, reply_ip, sizeof(reply_ip));
+			inet_ntop(AF_INET, &dst4.sin_addr, reply_ip, sizeof(reply_ip));
 			printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", (int)(n - sizeof(struct iphdr)), reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, rtt);
 		}
 		usleep(1000000);
 	}
 	print_summary(target, &stats, transmitted, received);
-	close(sockfd);
+	close(env->sockfd);
 	freeaddrinfo(res);
 	return (0);
 }

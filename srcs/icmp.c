@@ -32,6 +32,30 @@ int	create_icmp_packet(t_icmp_packet *pkt, uint16_t seq)
 	return (0);
 }
 
+int	create_icmpv6_packet(t_icmpv6_packet *pkt, uint16_t seq,
+		const struct in6_addr *src_addr, const struct in6_addr *dst_addr)
+{
+	struct icmp6_hdr	*hdr;
+
+	if (!pkt || !dst_addr)
+		return (-1);
+	bzero(pkt, sizeof(t_icmpv6_packet));
+	hdr = &pkt->hdr;
+	hdr->icmp6_type = ICMP6_ECHO_REQUEST;
+	hdr->icmp6_code = 0;
+	hdr->icmp6_id = htons(getpid() & 0xFFFF);
+	hdr->icmp6_seq = htons(seq);
+	for (size_t i = 0; i < sizeof(pkt->payload); i++)
+	{
+		pkt->payload[i] = PAYLOAD_PATTERN;
+	}
+	hdr->icmp6_cksum = 0;
+	printf("create_icmp6_packet: start to calculate checksum\n");
+	hdr->icmp6_cksum = calculate_icmpv6_checksum(hdr, sizeof(t_icmpv6_packet), src_addr, dst_addr);
+	printf("create_icmp6_packet: end to calculate checksum\n");
+	return (0);
+}
+
 int	parse_icmp_packet(const uint8_t *buffer, size_t size, bool verbose)
 {
 	const struct iphdr		*ip = (const struct iphdr *)buffer;

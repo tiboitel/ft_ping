@@ -31,6 +31,18 @@
 # define VERSION "1.0"
 # define USAGE_FMT "Usage: %s [-v] <destination>\n"
 
+typedef struct s_env
+{
+	struct addrinfo	*target;
+	char			target_ip[INET6_ADDRSTRLEN];
+	int				family;
+	int				sockfd;
+	int				ttl;
+	int				count;
+	int				verbose;
+	int				enabled_ipv6;
+}				t_env;
+
 typedef struct s_rtt_stats {
 	double	min;
 	double	max;
@@ -39,6 +51,6 @@ typedef struct s_rtt_stats {
 	int		count;
 }		t_rtt_stats;
 
-int	ping_loop(char *target, bool verbose);
+int	ping_loop(char *target, t_env *env);
 
 #endif

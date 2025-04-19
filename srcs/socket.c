@@ -10,27 +10,45 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "socket.h"
+# include "socket.h"
 
-int	setup_raw_socket(void)
+int	setup_raw_socket(int family)
 {
+	int				is_ipv6;
 	int				sockfd;
 	int 			ttl;
 	struct timeval	timeout;
 
 	sockfd = 0;
-	if ((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0)
+	is_ipv6 = (family == AF_INET6);
+	if (is_ipv6 == 0)
+		sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+	else
+		sockfd = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
+	if (sockfd < 0)
 	{
 		perror("socket: ");
 		return (-1);
 	}
 	// Set TTL.
 	ttl = DEFAULT_TTL;
-	if (setsockopt(sockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) < 0)
+	if (is_ipv6)
 	{
-		perror("setsockopt: IP_TTL");
-		close(sockfd);
-		return (-1);
+		if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &ttl, sizeof(ttl)) < 0)
+		{
+			perror("setsockopt: IPV6_UNICAST_HOPS");
+			close(sockfd);
+			return (-1);
+		}
+	}
+	else
+	{
+		if (setsockopt(sockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) < 0)
+		{
+			perror("setsockopt: IP_TTL");
+			close(sockfd);
+			return (-1);
+		}
 	}
 	bzero(&timeout, sizeof(struct timeval));
 	timeout.tv_sec = RECV_TIMEOUT_SEC;
@@ -45,11 +63,16 @@ int	setup_raw_socket(void)
 	return (sockfd);
 }
 
-int send_icmp_packet(int sockfd, const void *packet, size_t packet_size, const struct sockaddr *dest)
+int send_icmp_packet(t_env *env, const void *packet, size_t packet_size, void *dest)
 {
 	ssize_t sent = -0;
+	size_t dest_len = 0;
 
-	sent  = sendto(sockfd, packet, packet_size, 0, dest, sizeof(struct sockaddr_in));
+	if (env->enabled_ipv6)
+		dest_len =	sizeof(struct sockaddr_in6); 
+	else
+		dest_len = sizeof(struct sockaddr_in);
+	sent  = sendto(env->sockfd, packet, packet_size, 0, dest, dest_len);
 	if (sent < 0 || (size_t)sent != packet_size)
 	{
 		perror("sendto:");

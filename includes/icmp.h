@@ -14,12 +14,15 @@
 # define ICMP_H
 
 # include <netinet/ip_icmp.h>
+# include <netinet/ip6.h>
+# include <netinet/icmp6.h>
 # include <stdint.h>
 # include <stddef.h>
 # include <stdbool.h>
 # include <string.h>
 # include <stdio.h>
 # include <sys/types.h>
+# include <sys/uio.h>
 # include <unistd.h>
 # include "utils.h"
 
@@ -31,7 +34,14 @@ typedef struct s_icmp_packet {
 	char			payload[56];
 }		t_icmp_packet;
 
+typedef struct s_icmpv6_packet {
+	struct icmp6_hdr	hdr;
+	char				payload[56];
+}				t_icmpv6_packet;
+
 int	create_icmp_packet(t_icmp_packet *pkt, uint16_t seq);
 int	parse_icmp_packet(const uint8_t *buffer, size_t size, bool verbose);
+int	create_icmpv6_packet(t_icmpv6_packet *pkt, uint16_t seq, const struct in6_addr *src, const struct in6_addr *dst);
+int	parse_icmpv6_packet(const char *buffer, size_t size, bool verbose);
 
 #endif
