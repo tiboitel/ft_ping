@@ -56,28 +56,40 @@ static void	update_rtt_stats(t_rtt_stats *stats, double rtt)
 
 int	ping_loop(char *target, t_env *env)
 {
-	int					sequence; 
-	int					transmitted;
-	int					received;
-	int 				err;
-	int					n;
-	int					valid;
-	int					is_ipv6;
-	uint8_t				send_buf[1024];
-	uint8_t				recv_buf[1024];
-	double				rtt;
-	struct timeval		send_time;
-	struct timeval		recv_time;
-	t_icmp_packet		*pkt4;
-	t_icmpv6_packet		pkt6;
-	t_rtt_stats 		stats;
-	struct addrinfo		*res;
-	struct addrinfo		hints;
-	struct sockaddr_in	*addr;
+	// Packet buffers
+	uint8_t					send_buf[1024];
+	uint8_t					recv_buf[1024];
+	int						packet_len;
+
+	// Timing
+	double					rtt;
+	struct timeval			send_time;
+	struct timeval			recv_time;
+	t_rtt_stats 			stats;
+
+	// Counters
+	int						sequence; 
+	int						transmitted;
+	int						received;
+
+	// ICMP and reply
+	t_icmp_packet			*pkt4;
+	t_icmpv6_packet			pkt6;
+	char					reply_ip[INET6_ADDRSTRLEN];
+
+	// State
+	int 					err;
+	int						n;
+	int						valid;
+	int						is_ipv6;
+
+	// Environment
+	struct addrinfo			*res;
+	struct addrinfo			hints;
+	struct sockaddr_in		*addr;
 	struct sockaddr_storage	recv_addr;			
-	socklen_t		addrlen;
-	struct sockaddr_in6	dst6;
-	char				reply_ip[INET6_ADDRSTRLEN];
+	struct sockaddr_in6		dst6;
+	struct sockaddr_in6		*addr6;
 
 	env->sockfd = -1;
 	sequence = 0;
@@ -86,18 +98,15 @@ int	ping_loop(char *target, t_env *env)
 	res = NULL;
 	bzero(&stats, sizeof(t_rtt_stats));
 	bzero(&hints, sizeof(struct addrinfo));
-	addrlen = sizeof(recv_addr);
-	(void)addrlen;
+	hints.ai_socktype = SOCK_RAW;
 	if (env->enabled_ipv6)
 	{
 		hints.ai_family = AF_UNSPEC;
-		hints.ai_socktype = SOCK_RAW;
 		hints.ai_protocol = 0;
 	}
 	else
 	{
 		hints.ai_family = AF_INET;
-		hints.ai_socktype = SOCK_RAW;
 		hints.ai_protocol = IPPROTO_ICMP;
 	}
 	err = getaddrinfo(target, NULL, &hints, &res);
@@ -120,15 +129,14 @@ int	ping_loop(char *target, t_env *env)
 	addr = (struct sockaddr_in *)res->ai_addr;
 	if (is_ipv6)
 	{
-		struct sockaddr_in6	*addr6 = (struct sockaddr_in6 *)res->ai_addr;
+		addr6 = (struct sockaddr_in6 *)res->ai_addr;
 		inet_ntop(env->family, &addr6->sin6_addr, env->target_ip, sizeof(env->target_ip));
-		printf("PING %s (%s) 56(84) bytes of data.\n", target, env->target_ip);
 	}
 	else
 	{
 		inet_ntop(env->family, &addr->sin_addr, env->target_ip, sizeof(env->target_ip));
-		printf("PING %s (%s) 56(84) bytes of data.\n", target, env->target_ip);
 	}
+	printf("PING %s (%s) 56(84) bytes of data.\n", target, env->target_ip);
 	while (!g_stop_requested)
 	{
 		void *dest = NULL;
@@ -150,55 +158,53 @@ int	ping_loop(char *target, t_env *env)
 
 		}
 		gettimeofday(&send_time, NULL);
-		if (send_icmp_packet(env, send_buf, (is_ipv6) ? sizeof(t_icmpv6_packet) : sizeof(t_icmp_packet), dest)  < 0) {
+		packet_len = is_ipv6 ? sizeof(t_icmpv6_packet) : sizeof(t_icmp_packet);
+		if (send_icmp_packet(env, send_buf, packet_len, dest)  < 0) {
 			received--;
 			sleep(1);
 			continue;
 		}
-		else
+		n = receive_icmp_reply(env->sockfd, recv_buf, sizeof(recv_buf), (struct sockaddr *)&recv_addr);
+		gettimeofday(&recv_time, NULL);
+		if (n < 0)
 		{
-			n = receive_icmp_reply(env->sockfd, recv_buf, sizeof(recv_buf), (struct sockaddr *)&recv_addr);
-			gettimeofday(&recv_time, NULL);
-			if (n < 0)
+			if (errno == EINTR)
 			{
-				if (errno == EINTR)
-				{
-					break;
-				}
-				if (errno == EAGAIN || errno == EWOULDBLOCK)
-				{
-					fprintf(stderr, "Request timeout for icmp_seq %d\n", sequence);
-					continue;
-				}
-				perror("recvfrom:");
+				break;
+			}
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+			{
+				fprintf(stderr, "Request timeout for icmp_seq %d\n", sequence);
 				continue;
 			}
-			rtt = time_diff_ms(&send_time, &recv_time);
-			valid = (is_ipv6)
-				? parse_icmpv6_packet(recv_buf, n, env->verbose)
-				: parse_icmp_packet(recv_buf, n, env->verbose);
-			if (valid)
-			{
-				received++;
-				update_rtt_stats(&stats, rtt);
-				bzero(&reply_ip, INET_ADDRSTRLEN);	
-				if (is_ipv6)
-				{
-					struct sockaddr_in6	*src6 = (struct sockaddr_in6 *)&recv_addr;
-					inet_ntop(AF_INET6, &src6->sin6_addr, reply_ip, sizeof(reply_ip));
-					printf("%d bytes from %s: icmp_req=%d, time=%.2f ms\n",
-							n, reply_ip, sequence, rtt);
-				}
-				else
-				{
-					struct sockaddr_in 	*src4 = (struct sockaddr_in *)&recv_addr;
-					inet_ntop(AF_INET, &src4->sin_addr, reply_ip, sizeof(reply_ip));
-					printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", (int)(n - sizeof(struct iphdr)), reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, rtt);
-
-				}
-			}
-
+			perror("recvfrom:");
+			continue;
 		}
+		rtt = time_diff_ms(&send_time, &recv_time);
+		valid = (is_ipv6)
+			? parse_icmpv6_packet(recv_buf, n, env->verbose)
+			: parse_icmp_packet(recv_buf, n, env->verbose);
+		if (valid)
+		{
+			received++;
+			update_rtt_stats(&stats, rtt);
+			bzero(&reply_ip, INET_ADDRSTRLEN);	
+			if (is_ipv6)
+			{
+				struct sockaddr_in6	*src6 = (struct sockaddr_in6 *)&recv_addr;
+				inet_ntop(AF_INET6, &src6->sin6_addr, reply_ip, sizeof(reply_ip));
+				printf("%d bytes from %s: icmp_req=%d, time=%.2f ms\n",
+						n, reply_ip, sequence, rtt);
+			}
+			else
+			{
+				struct sockaddr_in 	*src4 = (struct sockaddr_in *)&recv_addr;
+				inet_ntop(AF_INET, &src4->sin_addr, reply_ip, sizeof(reply_ip));
+				printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", (int)(n - sizeof(struct iphdr)), reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, rtt);
+
+			}
+		}
+
 		transmitted++;
 		usleep(1000000);
 	}
