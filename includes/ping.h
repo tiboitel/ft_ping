@@ -43,6 +43,16 @@ typedef struct s_env
 	int				enabled_ipv6;
 }				t_env;
 
+typedef struct	s_ping_behavior {
+	void	(*prepare_packet)(void *packet_buf, int seq, t_env *env);
+	int		(*send_packet)(t_env *env, const void *packet_buf, size_t len, void *dest);
+	int		(*recv_packet)(int sockfd, uint8_t *recv_buf, size_t buflen,
+				struct sockaddr *recv_addr);
+	int		(*parse_reply)(uint8_t *buf, int len, int verbose);
+	void 	(*extract_reply_ip)(struct sockaddr *addr, char *ip_str, size_t len);
+	size_t	packet_size;
+}				t_ping_behavior;
+
 typedef struct s_rtt_stats {
 	double	min;
 	double	max;
