@@ -74,9 +74,9 @@ int	ping_loop(char *target, t_env *env)
 	struct addrinfo		*res;
 	struct addrinfo		hints;
 	struct sockaddr_in	*addr;
-	char				addr_str[INET_ADDRSTRLEN];
-	socklen_t			addrlen;
-	struct sockaddr_in	dst4;
+	char			addr_str[INET_ADDRSTRLEN];
+	struct sockaddr_storage	recv_addr;			
+	socklen_t		addrlen;
 	struct sockaddr_in6	dst6;
 	char				reply_ip[INET_ADDRSTRLEN];
 
@@ -87,16 +87,13 @@ int	ping_loop(char *target, t_env *env)
 	res = NULL;
 	bzero(&stats, sizeof(t_rtt_stats));
 	bzero(&hints, sizeof(struct addrinfo));
+	addrlen = sizeof(recv_addr);
+	(void)addrlen;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_RAW;
 	hints.ai_protocol = IPPROTO_ICMP;
 	err = getaddrinfo(target, NULL, &hints, &res);
 	is_ipv6 = (res->ai_family == AF_INET6);
-	if (is_ipv6 && !env->enabled_ipv6)
-	{
-		fprintf(stderr, "Target use IPv6 and not IPv4 protocol: %s.\n", target);
-		return (1);
-	}
 	is_ipv6 = env->enabled_ipv6 && is_ipv6; 
 	env->target = res;
 	env->family = res->ai_family;
@@ -115,12 +112,13 @@ int	ping_loop(char *target, t_env *env)
 	addr = (struct sockaddr_in *)res->ai_addr;
 	if (is_ipv6)
 	{
-		inet_ntop(env->family, &addr, env->target_ip, sizeof(env->target_ip));
+		struct sockaddr_in6	*addr6 = (struct sockaddr_in6 *)res->ai_addr;
+		inet_ntop(env->family, &addr6->sin6_addr, env->target_ip, sizeof(env->target_ip));
 		printf("PING %s (%s) 56(84) bytes of data.\n", target, env->target_ip);
 	}
 	else
 	{
-		inet_ntop(AF_INET, &addr->sin_addr, addr_str, sizeof(addr_str));
+		inet_ntop(env->family, &addr->sin_addr, env->target_ip, sizeof(env->target_ip));
 		printf("PING %s (%s) 56(84) bytes of data.\n", target, addr_str);
 	}
 	while (!g_stop_requested)
@@ -129,10 +127,8 @@ int	ping_loop(char *target, t_env *env)
 		if (is_ipv6)
 		{
 			struct in6_addr src_addr;
-
-			printf("logs: create_icmp6_packet\n");
-			dst6 = *(struct sockaddr_in6 *)env->target->ai_addr;
 			src_addr = in6addr_any;
+			dst6 = *(struct sockaddr_in6 *)env->target->ai_addr;
 			create_icmpv6_packet(&pkt6, ++sequence, &src_addr, &dst6.sin6_addr);
 			memcpy(send_buf, &pkt6, sizeof(pkt6));
 			dest = (void *)&dst6;
@@ -140,7 +136,6 @@ int	ping_loop(char *target, t_env *env)
 		else
 		{
 
-			printf("logs: create_icmp4_packet\n");
 			pkt4 = (t_icmp_packet *)send_buf;
 			create_icmp_packet(pkt4, ++sequence);
 			dest = (void *)res->ai_addr;
@@ -151,10 +146,10 @@ int	ping_loop(char *target, t_env *env)
 			perror("sendto:");
 			continue;
 		}
-
 		transmitted++;
-		addrlen = sizeof(dst4);
-		n = receive_icmp_reply(env->sockfd, recv_buf, sizeof(recv_buf), (struct sockaddr *)&dst4);
+
+		// receive reply
+		n = receive_icmp_reply(env->sockfd, recv_buf, sizeof(recv_buf), (struct sockaddr *)&recv_addr);
 		gettimeofday(&recv_time, NULL);
 		if (n < 0)
 		{
@@ -171,17 +166,33 @@ int	ping_loop(char *target, t_env *env)
 			continue;
 		}
 		rtt = time_diff_ms(&send_time, &recv_time);
-		valid = (is_ipv6) ? parse_icmpv6_packet(recv_buf, n, env->verbose) : parse_icmp_packet(recv_buf, n, env->verbose);
+		valid = (is_ipv6)
+			? parse_icmpv6_packet(recv_buf, n, env->verbose)
+			: parse_icmp_packet(recv_buf, n, env->verbose);
 		if (valid)
 		{
 			received++;
 			update_rtt_stats(&stats, rtt);
 			bzero(&reply_ip, INET_ADDRSTRLEN);	
-			inet_ntop(AF_INET, &dst4.sin_addr, reply_ip, sizeof(reply_ip));
-			printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", (int)(n - sizeof(struct iphdr)), reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, rtt);
+
+			if (is_ipv6)
+			{
+				struct sockaddr_in6	*src6 = (struct sockaddr_in6 *)&recv_addr;
+				inet_ntop(AF_INET6, &src6->sin6_addr, reply_ip, sizeof(reply_ip));
+				printf("%d bytes from %s: icmp_req=%d, time=%.2f ms\n",
+						n, reply_ip, sequence, rtt);
+			}
+			else
+			{
+				struct sockaddr_in 	*src4 = (struct sockaddr_in *)&recv_addr;
+				inet_ntop(AF_INET, &src4->sin_addr, reply_ip, sizeof(reply_ip));
+				printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", (int)(n - sizeof(struct iphdr)), reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, rtt);
+		
+			}
 		}
 		usleep(1000000);
 	}
+	// cleanup 
 	print_summary(target, &stats, transmitted, received);
 	close(env->sockfd);
 	freeaddrinfo(res);

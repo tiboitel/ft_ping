@@ -50,9 +50,7 @@ int	create_icmpv6_packet(t_icmpv6_packet *pkt, uint16_t seq,
 		pkt->payload[i] = PAYLOAD_PATTERN;
 	}
 	hdr->icmp6_cksum = 0;
-	printf("create_icmp6_packet: start to calculate checksum\n");
 	hdr->icmp6_cksum = calculate_icmpv6_checksum(hdr, sizeof(t_icmpv6_packet), src_addr, dst_addr);
-	printf("create_icmp6_packet: end to calculate checksum\n");
 	return (0);
 }
 
@@ -100,7 +98,6 @@ int	parse_icmpv6_packet(const uint8_t *buffer, size_t size, bool verbose)
 	icmp6 = (const struct icmp6_hdr *)buffer;
 	if (icmp6->icmp6_type != ICMP6_ECHO_REPLY)
 	{
-		dprintf(2, "parse_icmpv6_packet error: not an echo reply (type=%d)\n", icmp6->icmp6_type);
 		return (0);
 	}
 	if (ntohs(icmp6->icmp6_id) != (getpid() & 0xFFFF))
