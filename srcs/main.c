@@ -49,7 +49,6 @@ int	main(int argc, char **argv)
 		}
 		else if (strcmp(argv[i], "-6") == 0)
 		{
-			printf("IPV6: enabled.\n");
 			env.enabled_ipv6 = true;
 		}
 		else if (strcmp(argv[i], "--version") == 0

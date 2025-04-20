@@ -74,11 +74,10 @@ int	ping_loop(char *target, t_env *env)
 	struct addrinfo		*res;
 	struct addrinfo		hints;
 	struct sockaddr_in	*addr;
-	char			addr_str[INET_ADDRSTRLEN];
 	struct sockaddr_storage	recv_addr;			
 	socklen_t		addrlen;
 	struct sockaddr_in6	dst6;
-	char				reply_ip[INET_ADDRSTRLEN];
+	char				reply_ip[INET6_ADDRSTRLEN];
 
 	env->sockfd = -1;
 	sequence = 0;
@@ -91,7 +90,7 @@ int	ping_loop(char *target, t_env *env)
 	(void)addrlen;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_RAW;
-	hints.ai_protocol = IPPROTO_ICMP;
+	hints.ai_protocol = 0;
 	err = getaddrinfo(target, NULL, &hints, &res);
 	is_ipv6 = (res->ai_family == AF_INET6);
 	is_ipv6 = env->enabled_ipv6 && is_ipv6; 
@@ -119,7 +118,7 @@ int	ping_loop(char *target, t_env *env)
 	else
 	{
 		inet_ntop(env->family, &addr->sin_addr, env->target_ip, sizeof(env->target_ip));
-		printf("PING %s (%s) 56(84) bytes of data.\n", target, addr_str);
+		printf("PING %s (%s) 56(84) bytes of data.\n", target, env->target_ip);
 	}
 	while (!g_stop_requested)
 	{
