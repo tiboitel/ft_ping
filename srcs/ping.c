@@ -1,6 +1,6 @@
 /* ************************************************************************** */
 /*                                                                            */
- /*                                                                    :::::   */
+/*                                                                    :::::   */
 /*   ping.c                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: tiboitel <marvin@42.fr>                    +#+  +:+       +#+        */
@@ -88,9 +88,18 @@ int	ping_loop(char *target, t_env *env)
 	bzero(&hints, sizeof(struct addrinfo));
 	addrlen = sizeof(recv_addr);
 	(void)addrlen;
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_RAW;
-	hints.ai_protocol = 0;
+	if (env->enabled_ipv6)
+	{
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_socktype = SOCK_RAW;
+		hints.ai_protocol = 0;
+	}
+	else
+	{
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_RAW;
+		hints.ai_protocol = IPPROTO_ICMP;
+	}
 	err = getaddrinfo(target, NULL, &hints, &res);
 	is_ipv6 = (res->ai_family == AF_INET6);
 	is_ipv6 = env->enabled_ipv6 && is_ipv6; 
@@ -138,57 +147,59 @@ int	ping_loop(char *target, t_env *env)
 			pkt4 = (t_icmp_packet *)send_buf;
 			create_icmp_packet(pkt4, ++sequence);
 			dest = (void *)res->ai_addr;
-	
+
 		}
 		gettimeofday(&send_time, NULL);
 		if (send_icmp_packet(env, send_buf, (is_ipv6) ? sizeof(t_icmpv6_packet) : sizeof(t_icmp_packet), dest)  < 0) {
-			perror("sendto:");
+			received--;
+			sleep(1);
 			continue;
 		}
-		transmitted++;
-
-		// receive reply
-		n = receive_icmp_reply(env->sockfd, recv_buf, sizeof(recv_buf), (struct sockaddr *)&recv_addr);
-		gettimeofday(&recv_time, NULL);
-		if (n < 0)
+		else
 		{
-			if (errno == EINTR)
+			n = receive_icmp_reply(env->sockfd, recv_buf, sizeof(recv_buf), (struct sockaddr *)&recv_addr);
+			gettimeofday(&recv_time, NULL);
+			if (n < 0)
 			{
-				break;
-			}
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
-			{
-				fprintf(stderr, "Request timeout for icmp_seq %d\n", sequence);
+				if (errno == EINTR)
+				{
+					break;
+				}
+				if (errno == EAGAIN || errno == EWOULDBLOCK)
+				{
+					fprintf(stderr, "Request timeout for icmp_seq %d\n", sequence);
+					continue;
+				}
+				perror("recvfrom:");
 				continue;
 			}
-			perror("recvfrom:");
-			continue;
-		}
-		rtt = time_diff_ms(&send_time, &recv_time);
-		valid = (is_ipv6)
-			? parse_icmpv6_packet(recv_buf, n, env->verbose)
-			: parse_icmp_packet(recv_buf, n, env->verbose);
-		if (valid)
-		{
-			received++;
-			update_rtt_stats(&stats, rtt);
-			bzero(&reply_ip, INET_ADDRSTRLEN);	
+			rtt = time_diff_ms(&send_time, &recv_time);
+			valid = (is_ipv6)
+				? parse_icmpv6_packet(recv_buf, n, env->verbose)
+				: parse_icmp_packet(recv_buf, n, env->verbose);
+			if (valid)
+			{
+				received++;
+				update_rtt_stats(&stats, rtt);
+				bzero(&reply_ip, INET_ADDRSTRLEN);	
+				if (is_ipv6)
+				{
+					struct sockaddr_in6	*src6 = (struct sockaddr_in6 *)&recv_addr;
+					inet_ntop(AF_INET6, &src6->sin6_addr, reply_ip, sizeof(reply_ip));
+					printf("%d bytes from %s: icmp_req=%d, time=%.2f ms\n",
+							n, reply_ip, sequence, rtt);
+				}
+				else
+				{
+					struct sockaddr_in 	*src4 = (struct sockaddr_in *)&recv_addr;
+					inet_ntop(AF_INET, &src4->sin_addr, reply_ip, sizeof(reply_ip));
+					printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", (int)(n - sizeof(struct iphdr)), reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, rtt);
 
-			if (is_ipv6)
-			{
-				struct sockaddr_in6	*src6 = (struct sockaddr_in6 *)&recv_addr;
-				inet_ntop(AF_INET6, &src6->sin6_addr, reply_ip, sizeof(reply_ip));
-				printf("%d bytes from %s: icmp_req=%d, time=%.2f ms\n",
-						n, reply_ip, sequence, rtt);
+				}
 			}
-			else
-			{
-				struct sockaddr_in 	*src4 = (struct sockaddr_in *)&recv_addr;
-				inet_ntop(AF_INET, &src4->sin_addr, reply_ip, sizeof(reply_ip));
-				printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", (int)(n - sizeof(struct iphdr)), reply_ip, sequence, ((struct iphdr *)recv_buf)->ttl, rtt);
-		
-			}
+
 		}
+		transmitted++;
 		usleep(1000000);
 	}
 	// cleanup 

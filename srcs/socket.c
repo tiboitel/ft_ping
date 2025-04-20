@@ -75,7 +75,7 @@ int send_icmp_packet(t_env *env, const void *packet, size_t packet_size, void *d
 	sent  = sendto(env->sockfd, packet, packet_size, 0, dest, dest_len);
 	if (sent < 0 || (size_t)sent != packet_size)
 	{
-		perror("sendto:");
+		fprintf(stderr, "ping: sendmsg: %s\n", strerror(errno));
 		return (-1);
 	}
 	return 0;
@@ -99,5 +99,3 @@ int	receive_icmp_reply(int sockfd, uint8_t *buf, size_t buffer_size,
 	}
 	return (int)n;
 }
-
-
