@@ -17,56 +17,25 @@
 
 static volatile sig_atomic_t	g_stop_requested = 0;
 
-static void sigint_handler(int sig)
+static void		handle_signal(int sig)
 {
 	(void)sig;
 	g_stop_requested = 1;
 }
 
-static void print_summary(const char *host, const t_rtt_stats *stats,
-		int transmitted, int received)
-{
-	double	avg;
-	double	mdev;
-
-	avg = 0.00;
-	mdev = 0.00;
-	printf("\n--- %s ping statistics ---\n", host);
-	printf("%d packets transmitted, %d received, %1.f%% packet loss, time %dms\n",
-			transmitted, received, ((transmitted - received) * 100.0) / transmitted, (int)(stats->sum * 1000.0));
-	if (stats->count > 0)
-	{
-		avg =  stats->sum / stats->count;
-		mdev = sqrt((stats->sumsq / stats->count) - (avg * avg));
-		printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n",
-				stats->min, avg, stats->max, mdev);
-	}
-}
-
-static void	update_rtt_stats(t_rtt_stats *stats, double rtt)
-{
-	if (stats->count == 0 || rtt < stats->min)
-		stats->min = rtt;
-	if (rtt > stats->max)
-		stats->max = rtt;
-	stats->sum += rtt;
-	stats->sumsq += rtt * rtt;
-	stats->count++;
-}
-
 // IPv4 handlers
-void		prepare_packet_v4(void *buf, int seq, t_env *env)
+static void		prepare_packet_v4(void *buf, int seq, t_env *env)
 {
 	(void)env;
 	create_icmp_packet((t_icmp_packet *)buf, seq);
 }
 
-int			parse_reply_v4(uint8_t *buf, int len, int verbose)
+int				parse_reply_v4(uint8_t *buf, int len, int verbose)
 {
 	return (parse_icmp_packet(buf, len, verbose));
 }
 
-void 		extract_reply_ip_v4(struct sockaddr *addr, char *ip_str, size_t len)
+static void 	extract_reply_ip_v4(struct sockaddr *addr, char *ip_str, size_t len)
 {
 	struct sockaddr_in	*src;
 
@@ -76,7 +45,7 @@ void 		extract_reply_ip_v4(struct sockaddr *addr, char *ip_str, size_t len)
 }
 
 // IPv6 handlers
-void		prepare_packet_v6(void *buf, int seq, t_env *env)
+static void		prepare_packet_v6(void *buf, int seq, t_env *env)
 {
 	struct sockaddr_in6	*dst6;
 	struct in6_addr		src;
@@ -85,17 +54,15 @@ void		prepare_packet_v6(void *buf, int seq, t_env *env)
 	dst6 = (struct sockaddr_in6 *)env->target->ai_addr;
 	src = in6addr_any;
 	create_icmpv6_packet((t_icmpv6_packet *)buf, seq, &src, &dst6->sin6_addr);
-	// maybe can cut this line?
-	memcpy(buf, (void *)buf, sizeof(t_icmpv6_packet));
 
 }
 
-int			parse_reply_v6(uint8_t *buf, int len, int verbose)
+static int		parse_reply_v6(uint8_t *buf, int len, int verbose)
 {
 	return parse_icmpv6_packet(buf, len, verbose);
 }
 
-void		extract_reply_ip_v6(struct sockaddr *addr, char *ip_str, size_t len)
+static void		extract_reply_ip_v6(struct sockaddr *addr, char *ip_str, size_t len)
 {
 	struct sockaddr_in6	*src;
 
@@ -105,7 +72,7 @@ void		extract_reply_ip_v6(struct sockaddr *addr, char *ip_str, size_t len)
 }
 
 // main logic loop
-int	ping_loop(char *target, t_env *env)
+int				ping_loop(char *target, t_env *env)
 {
 	// Packet buffers
 	uint8_t					send_buf[1024];
@@ -182,7 +149,7 @@ int	ping_loop(char *target, t_env *env)
 			.recv_packet = receive_icmp_reply,
 			.parse_reply = parse_reply_v4,
 			.extract_reply_ip = extract_reply_ip_v4,
-			.packet_size = sizeof(t_icmpv6_packet)
+			.packet_size = sizeof(t_icmp_packet)
 		};
 	}
 
@@ -199,7 +166,7 @@ int	ping_loop(char *target, t_env *env)
 		freeaddrinfo(res);
 		return (1);
 	}
-	signal(SIGINT, sigint_handler);
+	signal(SIGINT, handle_signal);
 	addr = (struct sockaddr_in *)res->ai_addr;
 	if (is_ipv6)
 	{
@@ -217,6 +184,7 @@ int	ping_loop(char *target, t_env *env)
 		behavior.prepare_packet(send_buf, sequence, env);
 		gettimeofday(&send_time, NULL);
 		if (behavior.send_packet(env, send_buf, behavior.packet_size, res->ai_addr)  < 0) {
+			transmitted++;
 			sleep(1);
 			continue;
 		}
@@ -248,13 +216,10 @@ int	ping_loop(char *target, t_env *env)
 					sequence, 
 					((struct iphdr *)recv_buf)->ttl,
 					rtt);
-
 		}
-
 		transmitted++;
 		usleep(1000000);
 	}
-	// cleanup 
 	print_summary(target, &stats, transmitted, received);
 	close(env->sockfd);
 	freeaddrinfo(res);

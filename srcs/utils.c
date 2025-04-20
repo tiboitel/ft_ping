@@ -39,7 +39,7 @@ uint16_t	calculate_checksum(void *buf, int len)
 	return ~sum;
 }
 
-uint16_t calculate_icmpv6_checksum(struct icmp6_hdr *hdr, size_t len, 
+uint16_t	calculate_icmpv6_checksum(struct icmp6_hdr *hdr, size_t len, 
 		const struct in6_addr *src_addr, const struct in6_addr *dst_addr)
 {
 	t_pseudo_hdr	pseudo_hdr;
@@ -80,7 +80,7 @@ uint16_t calculate_icmpv6_checksum(struct icmp6_hdr *hdr, size_t len,
 	return ~ sum;
 }
 
-double		time_diff_ms(const struct timeval *start, const struct timeval *end)
+double	time_diff_ms(const struct timeval *start, const struct timeval *end)
 {
 	long sec_diff;
 	long usec_diff;
@@ -93,3 +93,33 @@ double		time_diff_ms(const struct timeval *start, const struct timeval *end)
 	return (sec_diff * 1000.0) + (usec_diff / 1000.0);
 }
 
+void	print_summary(const char *host, const t_rtt_stats *stats,
+		int transmitted, int received)
+{
+	double	avg;
+	double	mdev;
+
+	avg = 0.00;
+	mdev = 0.00;
+	printf("\n--- %s ping statistics ---\n", host);
+	printf("%d packets transmitted, %d received, %1.f%% packet loss, time %dms\n",
+			transmitted, received, ((transmitted - received) * 100.0) / transmitted, (int)(stats->sum * 1000.0));
+	if (stats->count > 0)
+	{
+		avg =  stats->sum / stats->count;
+		mdev = sqrt((stats->sumsq / stats->count) - (avg * avg));
+		printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n",
+				stats->min, avg, stats->max, mdev);
+	}
+}
+
+void	update_rtt_stats(t_rtt_stats *stats, double rtt)
+{
+	if (stats->count == 0 || rtt < stats->min)
+		stats->min = rtt;
+	if (rtt > stats->max)
+		stats->max = rtt;
+	stats->sum += rtt;
+	stats->sumsq += rtt * rtt;
+	stats->count++;
+}

@@ -24,7 +24,6 @@
 # include <sys/time.h>
 # include <sys/types.h>
 # include <arpa/inet.h>
-# include <math.h>
 # include <errno.h>
 
 # define APP_NAME "ft_ping"
@@ -52,14 +51,6 @@ typedef struct	s_ping_behavior {
 	void 	(*extract_reply_ip)(struct sockaddr *addr, char *ip_str, size_t len);
 	size_t	packet_size;
 }				t_ping_behavior;
-
-typedef struct s_rtt_stats {
-	double	min;
-	double	max;
-	double	sum;
-	double	sumsq;
-	int		count;
-}		t_rtt_stats;
 
 int	ping_loop(char *target, t_env *env);
 
