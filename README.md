@@ -195,4 +195,3 @@ Written by [tiboitel](https://github.com/tiboitel), C wizard in training, certif
 If you enjoyed this, wait ‘til you see my `traceroute` clone in the future — it cries when packets die.
 
 See you Space Cowboy 🤠 🚀
-

@@ -219,7 +219,7 @@ int				ping_loop(char *target, t_env *env)
 			payload_len = n - (is_ipv6 ? 0 : sizeof(struct iphdr));
 			if (env->numeric_only)
 			{
-				printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", 
+				printf("%d bytes from %s: icmp_req=%d ttl=%d time=%.2f ms\n", 
 						payload_len,
 						reply_ip,
 						sequence, 
@@ -229,7 +229,7 @@ int				ping_loop(char *target, t_env *env)
 			}
 			else
 			{
-				printf("%d bytes from %s (%s): icmp_req=%d, ttl=%d, time=%.2f ms\n", 
+				printf("%d bytes from %s (%s): icmp_req=%d ttl=%d time=%.2f ms\n", 
 						payload_len,
 						display_name,
 						reply_ip,

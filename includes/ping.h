@@ -28,7 +28,7 @@
 
 # define APP_NAME "ft_ping"
 # define VERSION "1.0"
-# define USAGE_FMT "Usage: %s [-v] <destination>\n"
+# define USAGE_FMT "Usage: %s [-vt6n] [-t ttl] destination\n"
 
 typedef struct s_env
 {
