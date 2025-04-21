@@ -20,7 +20,7 @@ $(NAME): $(OBJS)
 	$(CC) -o $(NAME) $(OBJS) $(CFLAGS) $(INCLUDES_C) 
 
 %.o: %.c
-	$(CC) -o $@ $(INCLUDES_O) $(CFLAGS) $(SDL_HEADER) -c $<
+	$(CC) -o $@ $(INCLUDES_O) $(CFLAGS) -c $<
 
 clean:
 	rm -rf $(OBJS)

@@ -29,7 +29,6 @@ int	setup_raw_socket(t_env *env)
 	{
 		return (-1);
 	}
-	// Set TTL.
 	ttl = env->ttl_specified ? env->ttl : DEFAULT_TTL;
 	if (is_ipv6)
 	{
