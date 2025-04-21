@@ -40,6 +40,7 @@ typedef struct s_env
 	int				count;
 	int				verbose;
 	int				enabled_ipv6;
+	int				numeric_only;
 }				t_env;
 
 typedef struct	s_ping_behavior {

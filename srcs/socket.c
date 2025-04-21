@@ -99,3 +99,22 @@ int	receive_icmp_reply(int sockfd, uint8_t *buf, size_t buffer_size,
 	}
 	return (int)n;
 }
+
+bool reverse_dns_lookup(struct sockaddr *addr, char *host, size_t hostlen)
+{
+	int	ret;
+
+	ret = getnameinfo(addr,
+			(addr->sa_family == AF_INET ) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6),
+			host,
+			hostlen,
+			NULL,
+			0,
+			NI_NAMEREQD);
+
+	if (ret != 0)
+	{
+		return false;
+	}
+	return true;
+}

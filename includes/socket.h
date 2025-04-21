@@ -30,5 +30,6 @@ int	send_icmp_packet(t_env *env, const void *pkt, size_t len,
 		void *dest);
 int	receive_icmp_reply(int sockfd, uint8_t *buf, size_t buffer,
 		struct sockaddr *src);
+bool reverse_dns_lookup(struct sockaddr *addr, char *host, size_t host_len);
 
 #endif

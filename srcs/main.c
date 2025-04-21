@@ -38,6 +38,7 @@ int	main(int argc, char **argv)
 	int			i;
 
 	env.verbose = false;
+	env.numeric_only = false;
 	env.ttl = 64;
 	target = NULL;
 	i = 1;
@@ -52,6 +53,10 @@ int	main(int argc, char **argv)
 		{
 			env.enabled_ipv6 = true;
 			env.ttl = 1;
+		}
+		else if (strcmp(argv[i], "-n") == 0)
+		{
+			env.numeric_only = 1;
 		}
 		else if (strcmp(argv[i], "--version") == 0
 			|| strcmp(argv[i], "-V") == 0)

@@ -98,6 +98,7 @@ int				ping_loop(char *target, t_env *env)
 	int						n;
 	int						valid;
 	int						is_ipv6;
+	bool					dns_resolved;
 
 	// Environment
 	struct addrinfo			*res;
@@ -105,6 +106,8 @@ int				ping_loop(char *target, t_env *env)
 	struct sockaddr_in		*addr;
 	struct sockaddr_storage	recv_addr;			
 	struct sockaddr_in6		*addr6;
+	char 					hostname[NI_MAXHOST];
+	char					*display_name;
 	t_ping_behavior			behavior;
 
 	env->sockfd = -1;
@@ -112,6 +115,7 @@ int				ping_loop(char *target, t_env *env)
 	transmitted = 0;
 	received = 0;
 	payload_len = 0;
+	dns_resolved = false;
 	res = NULL;
 	bzero(&stats, sizeof(t_rtt_stats));
 	bzero(&hints, sizeof(struct addrinfo));
@@ -133,11 +137,11 @@ int				ping_loop(char *target, t_env *env)
 	{
 		behavior = (t_ping_behavior) {
 			.prepare_packet = prepare_packet_v6,
-			.send_packet = send_icmp_packet,
-			.recv_packet = receive_icmp_reply,
-			.parse_reply = parse_reply_v6,
-			.extract_reply_ip = extract_reply_ip_v6,
-			.packet_size = sizeof(t_icmpv6_packet)
+				.send_packet = send_icmp_packet,
+				.recv_packet = receive_icmp_reply,
+				.parse_reply = parse_reply_v6,
+				.extract_reply_ip = extract_reply_ip_v6,
+				.packet_size = sizeof(t_icmpv6_packet)
 		};
 	}
 	else
@@ -145,11 +149,11 @@ int				ping_loop(char *target, t_env *env)
 
 		behavior = (t_ping_behavior) {
 			.prepare_packet = prepare_packet_v4,
-			.send_packet = send_icmp_packet,
-			.recv_packet = receive_icmp_reply,
-			.parse_reply = parse_reply_v4,
-			.extract_reply_ip = extract_reply_ip_v4,
-			.packet_size = sizeof(t_icmp_packet)
+				.send_packet = send_icmp_packet,
+				.recv_packet = receive_icmp_reply,
+				.parse_reply = parse_reply_v4,
+				.extract_reply_ip = extract_reply_ip_v4,
+				.packet_size = sizeof(t_icmp_packet)
 		};
 	}
 
@@ -209,13 +213,29 @@ int				ping_loop(char *target, t_env *env)
 			received++;
 			update_rtt_stats(&stats, rtt);
 			behavior.extract_reply_ip((struct sockaddr *)&recv_addr, reply_ip, sizeof(reply_ip));
+			dns_resolved = reverse_dns_lookup((struct sockaddr *)&recv_addr, hostname, sizeof(hostname));
+			display_name = (dns_resolved) ? hostname : reply_ip;
 			payload_len = n - (is_ipv6 ? 0 : sizeof(struct iphdr));
-			printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", 
-					payload_len,
-					reply_ip,
-					sequence, 
-					((struct iphdr *)recv_buf)->ttl,
-					rtt);
+			if (env->numeric_only)
+			{
+				printf("%d bytes from %s: icmp_req=%d, ttl=%d, time=%.2f ms\n", 
+						payload_len,
+						reply_ip,
+						sequence, 
+						((struct iphdr *)recv_buf)->ttl,
+						rtt);
+
+			}
+			else
+			{
+				printf("%d bytes from %s (%s): icmp_req=%d, ttl=%d, time=%.2f ms\n", 
+						payload_len,
+						display_name,
+						reply_ip,
+						sequence, 
+						((struct iphdr *)recv_buf)->ttl,
+						rtt);
+			}
 		}
 		transmitted++;
 		usleep(1000000);
