@@ -131,6 +131,11 @@ int				ping_loop(char *target, t_env *env)
 		hints.ai_protocol = IPPROTO_ICMP;
 	}
 	err = getaddrinfo(target, NULL, &hints, &res);
+	if (err != 0)
+	{
+		fprintf(stderr, "DNS resolution failed for %s: %s\n", target, gai_strerror(err));
+		return (1);
+	}
 	is_ipv6 = (res->ai_family == AF_INET6);
 	is_ipv6 = env->enabled_ipv6 && is_ipv6; 
 	if (is_ipv6)
@@ -159,14 +164,10 @@ int				ping_loop(char *target, t_env *env)
 
 	env->target = res;
 	env->family = res->ai_family;
-	if (err != 0)
-	{
-		fprintf(stderr, "DNS resolution failed for %s: %s\n", target, gai_strerror(err));
-		return (1);
-	}
-	env->sockfd = setup_raw_socket(env->family);
+	env->sockfd = setup_raw_socket(env);
 	if (env->sockfd < 0)
 	{
+		fprintf(stderr, "connect: %s\n", strerror(errno));
 		freeaddrinfo(res);
 		return (1);
 	}
@@ -208,7 +209,7 @@ int				ping_loop(char *target, t_env *env)
 		}
 		rtt = time_diff_ms(&send_time, &recv_time);
 		valid = behavior.parse_reply(recv_buf, n, env->verbose);
-		if (valid)
+		if (valid == 1)
 		{
 			received++;
 			update_rtt_stats(&stats, rtt);
@@ -236,6 +237,12 @@ int				ping_loop(char *target, t_env *env)
 						((struct iphdr *)recv_buf)->ttl,
 						rtt);
 			}
+		}
+		else if (valid == -2)
+		{
+			update_rtt_stats(&stats, rtt);
+			behavior.extract_reply_ip((struct sockaddr *)&recv_addr, reply_ip, sizeof(reply_ip));
+			fprintf(stderr, "From %s: icmp_seq=%d Time to live exceeded\n", reply_ip, sequence);
 		}
 		transmitted++;
 		usleep(1000000);

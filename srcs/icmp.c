@@ -70,8 +70,10 @@ int	parse_icmp_packet(const uint8_t *buffer, size_t size, bool verbose)
 	{
 		return (0);
 	}
-
-	// check for echo reply
+	if (icmp->type == ICMP_TIME_EXCEEDED)
+	{
+		return (-2);
+	}
 	if (icmp->type != ICMP_ECHOREPLY)
 	{
 		dprintf(2, "parse_icmp_packet_error: packet is not ICMP_ECHOREPLY\n");
@@ -96,6 +98,10 @@ int	parse_icmpv6_packet(const uint8_t *buffer, size_t size, bool verbose)
 		return (0);
 	}
 	icmp6 = (const struct icmp6_hdr *)buffer;
+	if (icmp6->icmp6_type == ICMP6_TIME_EXCEEDED)
+	{
+		return (-2);
+	}
 	if (icmp6->icmp6_type != ICMP6_ECHO_REPLY)
 	{
 		return (0);

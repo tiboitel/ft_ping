@@ -12,7 +12,7 @@
 
 # include "socket.h"
 
-int	setup_raw_socket(int family)
+int	setup_raw_socket(t_env *env)
 {
 	int				is_ipv6;
 	int				sockfd;
@@ -20,18 +20,17 @@ int	setup_raw_socket(int family)
 	struct timeval	timeout;
 
 	sockfd = 0;
-	is_ipv6 = (family == AF_INET6);
+	is_ipv6 = (env->family == AF_INET6);
 	if (is_ipv6 == 0)
 		sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	else
 		sockfd = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
 	if (sockfd < 0)
 	{
-		perror("socket: ");
 		return (-1);
 	}
 	// Set TTL.
-	ttl = DEFAULT_TTL;
+	ttl = env->ttl_specified ? env->ttl : DEFAULT_TTL;
 	if (is_ipv6)
 	{
 		if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &ttl, sizeof(ttl)) < 0)

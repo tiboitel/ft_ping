@@ -25,7 +25,7 @@
 # define RECV_TIMEOUT_SEC 1
 # define RECV_TIMEOUT_USEC 0
 
-int	setup_raw_socket(int family);
+int	setup_raw_socket(t_env *env);
 int	send_icmp_packet(t_env *env, const void *pkt, size_t len,
 		void *dest);
 int	receive_icmp_reply(int sockfd, uint8_t *buf, size_t buffer,

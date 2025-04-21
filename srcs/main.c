@@ -40,6 +40,7 @@ int	main(int argc, char **argv)
 	env.verbose = false;
 	env.numeric_only = false;
 	env.ttl = 64;
+	env.ttl_specified = 0;
 	target = NULL;
 	i = 1;
 	while (i < argc)
@@ -57,6 +58,16 @@ int	main(int argc, char **argv)
 		else if (strcmp(argv[i], "-n") == 0)
 		{
 			env.numeric_only = 1;
+		}
+		else if (strcmp(argv[i], "-t") == 0 && i + 1 < argc)
+		{
+			env.ttl = atoi(argv[++i]);
+			env.ttl_specified = 1;
+			if (env.ttl < 1 || env.ttl > 255)
+			{
+				fprintf(stderr, "Invalid TTL value. Must be between 1 and 255.\n");
+				return EXIT_FAILURE;
+			}
 		}
 		else if (strcmp(argv[i], "--version") == 0
 			|| strcmp(argv[i], "-V") == 0)
@@ -82,14 +93,10 @@ int	main(int argc, char **argv)
 	}
 	if (signal(SIGINT, handle_signal) == SIG_ERR)
 	{
-		perror("signal:");
+		fprintf(stderr, "signal: %s", strerror(errno));
 		return (EXIT_FAILURE);
 	}
 	ret = 0;
 	ret = ping_loop(target, &env);
-	if (ret != 0)
-	{
-		fprintf(stderr, "Ping failed with code %d\n", ret);
-	}
 	return ((ret == 0) ? EXIT_SUCCESS : EXIT_FAILURE);
 }

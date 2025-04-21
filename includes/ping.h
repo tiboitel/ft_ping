@@ -37,6 +37,7 @@ typedef struct s_env
 	int				family;
 	int				sockfd;
 	int				ttl;
+	int				ttl_specified;
 	int				count;
 	int				verbose;
 	int				enabled_ipv6;

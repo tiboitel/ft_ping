@@ -104,7 +104,7 @@ void	print_summary(const char *host, const t_rtt_stats *stats,
 	printf("\n--- %s ping statistics ---\n", host);
 	printf("%d packets transmitted, %d received, %1.f%% packet loss, time %dms\n",
 			transmitted, received, ((transmitted - received) * 100.0) / transmitted, (int)(stats->sum * 1000.0));
-	if (stats->count > 0)
+	if (stats->count > 0 && received > 0)
 	{
 		avg =  stats->sum / stats->count;
 		mdev = sqrt((stats->sumsq / stats->count) - (avg * avg));
